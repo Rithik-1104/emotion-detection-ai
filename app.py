@@ -2,6 +2,12 @@ import streamlit as st
 import google.generativeai as genai
 import time
 from datetime import datetime
+import os
+
+# ============================
+# Configure Gemini API (FIXED)
+# ============================
+api_key = os.getenv("GEMINI_API_KEY")
 
 # Page configuration
 st.set_page_config(
@@ -59,7 +65,9 @@ st.markdown("""
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "api_key" not in st.session_state:
-    st.session_state.api_key = None
+    st.session_state.api_key = api_key
+if "example_text" not in st.session_state:
+    st.session_state.example_text = None
 
 # Emotion mapping with emojis
 EMOTION_MAP = {
@@ -112,56 +120,36 @@ Format your response EXACTLY like this:
         return response.text
     
     except Exception as e:
-        return f"⚠️ Error: {str(e)}\n\nPlease check your API key in the sidebar."
+        return f"⚠️ Error: {str(e)}"
 
 # Sidebar
 with st.sidebar:
     st.title("🎭 Emotion AI Settings")
     
-    # API Key input
-    api_key_input = st.text_input(
-        "Google Gemini API Key",
-        type="password",
-        value=st.session_state.api_key or "",
-        help="Get your free API key from https://makersuite.google.com/app/apikey"
-    )
-    
-    if api_key_input:
-        st.session_state.api_key = api_key_input
+    if st.session_state.api_key:
         st.success("✅ API Key configured!")
     else:
-        st.warning("⚠️ Please enter your Gemini API key")
-        st.markdown("""
-        ### 🔑 Get Free API Key:
-        1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-        2. Click "Create API Key"
-        3. Copy and paste here
-        
-        **Free Tier:** 15 requests/min, 1M tokens/day
-        """)
+        st.error("❌ API key missing! Add it in environment variables.")
     
     st.divider()
     
-    # Info section
     st.markdown("### 📊 Emotion Categories")
     st.markdown("""
-    - 😊 **Joy** - Happiness, delight
-    - 😢 **Sadness** - Sorrow, grief
-    - 😡 **Anger** - Frustration, rage
-    - 😱 **Fear** - Anxiety, worry
-    - 😍 **Love** - Affection, care
-    - 😲 **Surprise** - Shock, amazement
-    - 😐 **Neutral** - No strong emotion
+    - 😊 **Joy**
+    - 😢 **Sadness**
+    - 😡 **Anger**
+    - 😱 **Fear**
+    - 😍 **Love**
+    - 😲 **Surprise**
+    - 😐 **Neutral**
     """)
     
     st.divider()
     
-    # Clear chat button
     if st.button("🗑️ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
     
-    # Example texts
     st.markdown("### 💡 Try These Examples:")
     examples = [
         "I just got promoted at work! This is amazing!",
@@ -189,7 +177,6 @@ for message in st.session_state.messages:
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Extract emotion for badge
         emoji, css_class, emotion_name = get_emotion_emoji(message["content"])
         
         st.markdown(f"""
@@ -203,30 +190,23 @@ for message in st.session_state.messages:
 # Chat input
 user_input = st.chat_input("Type your text here to analyze emotions...")
 
-# Handle example text from sidebar
-if "example_text" in st.session_state:
+if st.session_state.example_text:
     user_input = st.session_state.example_text
-    del st.session_state.example_text
+    st.session_state.example_text = None
 
-# Process user input
+# Process input
 if user_input:
     if not st.session_state.api_key:
-        st.error("⚠️ Please enter your Gemini API key in the sidebar first!")
+        st.error("⚠️ API key missing!")
     else:
-        # Add user message
         st.session_state.messages.append({"role": "user", "content": user_input})
         
-        # Show typing indicator
         with st.spinner("🔍 Analyzing emotions..."):
-            time.sleep(0.5)  # Brief pause for UX
-            
-            # Get AI response
+            time.sleep(0.5)
             response = analyze_emotion(user_input, st.session_state.api_key)
             
-            # Add assistant message
             st.session_state.messages.append({"role": "assistant", "content": response})
         
-        # Rerun to update chat
         st.rerun()
 
 # Footer
@@ -234,6 +214,6 @@ st.divider()
 st.markdown("""
 <div style='text-align: center; color: #666; padding: 1rem;'>
     <p>🎓 <b>NLP Project:</b> Text Emotion Detection using LLM | Built with Gemini API & Streamlit</p>
-    <p style='font-size: 0.9rem;'>Detects 7 emotion categories: Joy, Sadness, Anger, Fear, Love, Surprise, Neutral</p>
+    <p style='font-size: 0.9rem;'>Detects 7 emotion categories</p>
 </div>
 """, unsafe_allow_html=True)
